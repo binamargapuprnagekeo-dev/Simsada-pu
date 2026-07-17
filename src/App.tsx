@@ -341,6 +341,13 @@ export default function App() {
   };
 
   const handleDeleteSpj = async (id: string, isFromArchive: boolean = false) => {
+    const adminPinInput = window.prompt('Masukkan PIN Admin (sims@dadpupr) untuk menghapus berkas SPJ ini:');
+    if (adminPinInput === null) return; // cancelled
+    if (adminPinInput !== 'sims@dadpupr') {
+      alert('PIN Salah! Hanya Admin yang dapat menghapus berkas SPJ.');
+      return;
+    }
+
     const confirmed = window.confirm('Apakah Anda yakin ingin menghapus Berkas SPJ ini? Tindakan ini akan menghapus Kuitansi, BAP, dan NPD sekaligus secara permanen.');
     if (!confirmed) return;
 

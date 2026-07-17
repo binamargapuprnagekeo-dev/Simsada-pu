@@ -102,7 +102,10 @@ export const SpjForm: React.FC<SpjFormProps> = ({
   // Recalculate Terbilang whenever Nilai Kontrak changes
   useEffect(() => {
     if (form.nilaiKontrak > 0) {
-      const words = terbilang(form.nilaiKontrak);
+      let words = terbilang(form.nilaiKontrak);
+      if (words && !words.toLowerCase().endsWith('rupiah')) {
+        words += ' Rupiah';
+      }
       setForm(prev => ({ ...prev, terbilang: words }));
     } else {
       setForm(prev => ({ ...prev, terbilang: '' }));

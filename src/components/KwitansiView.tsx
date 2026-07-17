@@ -65,7 +65,7 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
           <div className="font-semibold italic">Terbilang</div>
           <div>:</div>
           <div className="border-b border-dotted border-gray-400 print:border-black pb-0.5 italic font-medium bg-gray-50 px-2 py-0.5 rounded print:bg-transparent print:p-0">
-            ( {data.terbilang || '................................................................................................................................'} Rupiah )
+            ( {data.terbilang ? (data.terbilang.toLowerCase().endsWith('rupiah') ? data.terbilang : data.terbilang + ' Rupiah') : '................................................................................................................................'} )
           </div>
         </div>
 

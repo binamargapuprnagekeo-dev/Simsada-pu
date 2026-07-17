@@ -10,34 +10,46 @@ export function terbilang(nominal: number): string {
   const rounded = Math.floor(nominal);
   if (rounded === 0) return 'Nol';
   
-  const numbers = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+  const convert = (num: number): string => {
+    const numbers = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+    let result = '';
+    
+    if (num < 12) {
+      result = numbers[num];
+    } else if (num < 20) {
+      result = convert(num - 10) + ' Belas';
+    } else if (num < 100) {
+      const rest = num % 10;
+      result = convert(Math.floor(num / 10)) + ' Puluh' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 200) {
+      const rest = num - 100;
+      result = 'Seratus' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 1000) {
+      const rest = num % 100;
+      result = convert(Math.floor(num / 100)) + ' Ratus' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 2000) {
+      const rest = num - 1000;
+      result = 'Seribu' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 1000000) {
+      const rest = num % 1000;
+      result = convert(Math.floor(num / 1000)) + ' Ribu' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 1000000000) {
+      const rest = num % 1000000;
+      result = convert(Math.floor(num / 1000000)) + ' Juta' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 1000000000000) {
+      const rest = num % 1000000000;
+      result = convert(Math.floor(num / 1000000000)) + ' Milyar' + (rest > 0 ? ' ' + convert(rest) : '');
+    } else if (num < 1000000000000000) {
+      const rest = num % 1000000000000;
+      result = convert(Math.floor(num / 1000000000000)) + ' Triliun' + (rest > 0 ? ' ' + convert(rest) : '');
+    }
+    
+    return result;
+  };
   
-  let result = '';
+  let rawResult = convert(rounded);
   
-  if (rounded < 12) {
-    result = numbers[rounded];
-  } else if (rounded < 20) {
-    result = terbilang(rounded - 10) + ' Belas';
-  } else if (rounded < 100) {
-    result = terbilang(Math.floor(rounded / 10)) + ' Puluh ' + terbilang(rounded % 10);
-  } else if (rounded < 200) {
-    result = 'Seratus ' + terbilang(rounded - 100);
-  } else if (rounded < 1000) {
-    result = terbilang(Math.floor(rounded / 100)) + ' Ratus ' + terbilang(rounded % 100);
-  } else if (rounded < 2000) {
-    result = 'Seribu ' + terbilang(rounded - 1000);
-  } else if (rounded < 1000000) {
-    result = terbilang(Math.floor(rounded / 1000)) + ' Ribu ' + terbilang(rounded % 1000);
-  } else if (rounded < 1000000000) {
-    result = terbilang(Math.floor(rounded / 1000000)) + ' Juta ' + terbilang(rounded % 1000000);
-  } else if (rounded < 1000000000000) {
-    result = terbilang(Math.floor(rounded / 1000000000)) + ' Milyar ' + terbilang(rounded % 1000000000);
-  } else if (rounded < 1000000000000000) {
-    result = terbilang(Math.floor(rounded / 1000000000000)) + ' Triliun ' + terbilang(rounded % 1000000000000);
-  }
-  
-  // Title Case conversion with specific Indonesian grammar corrections (e.g. "Satu Ratus" -> "Seratus")
-  let cleanResult = result.replace(/\s+/g, ' ').trim();
+  let cleanResult = rawResult.replace(/\s+/g, ' ').trim();
   cleanResult = cleanResult.replace(/^Satu Ratus/, 'Seratus');
   cleanResult = cleanResult.replace(/^Satu Ribu/, 'Seribu');
   

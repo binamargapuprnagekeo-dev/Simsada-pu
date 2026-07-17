@@ -19,6 +19,13 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
   const fisikBersih = data.nilaiKontrak - totalPotongan;
   const sigType = forcedSignatureType || data.signatureType || 'manual';
 
+  const formatTerbilangBap = (text: string) => {
+    if (!text) return '';
+    let clean = text.trim();
+    clean = clean.replace(/Rupiah$/i, '').trim();
+    return clean;
+  };
+
   return (
     <div className="bg-white p-8 shadow-sm border border-gray-200 rounded-lg max-w-[800px] mx-auto my-4 font-serif text-black print:shadow-none print:border-none print:p-0 print:my-0 print:max-w-full">
       {/* KOP SURAT */}
@@ -209,14 +216,14 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
 
         {/* Terbilang block */}
         <div className="mt-3 px-3 py-1.5 border-l-[3px] border-black bg-gray-100 font-sans italic text-xs print:bg-transparent print:border-black rounded-r">
-          <span className="font-semibold font-serif not-italic">terbilang :</span> ( {data.terbilang || '...........................................................................................'} {totalPotongan > 0 ? 'Kurang Potongan Pajak' : ''} Rupiah )
+          <span className="font-semibold font-serif not-italic">terbilang :</span> ( {data.terbilang ? `${formatTerbilangBap(data.terbilang)}${totalPotongan > 0 ? ' Kurang Potongan Pajak' : ''} Rupiah` : '...........................................................................................'} )
         </div>
       </div>
 
       {/* FOOTER TEXT */}
       <div className="text-sm leading-relaxed text-justify mb-8 space-y-3">
         <p>
-          <span className="font-bold">PIHAK KESATU</span> membayar kepada <span className="font-bold">PIHAK KEDUA</span> sebesar <span className="font-bold">{formatRupiah(fisikBersih, true, true)}</span> ({data.terbilang || '................................'} Rupiah) yang dibebankan pada Dinas PUPR Kabupaten Nagekeo Tahun Anggaran {data.tanggalSpj.split('-')[0] || '2026'} dengan Kode Rekening: <span className="font-mono font-bold">{data.kodeRekening || '.............................................'}</span>, serta dengan Pengajuan SPP LS.
+          <span className="font-bold">PIHAK KESATU</span> membayar kepada <span className="font-bold">PIHAK KEDUA</span> sebesar <span className="font-bold">{formatRupiah(fisikBersih, true, true)}</span> ({data.terbilang ? `${formatTerbilangBap(data.terbilang)} Rupiah` : '................................'} ) yang dibebankan pada Dinas PUPR Kabupaten Nagekeo Tahun Anggaran {data.tanggalSpj.split('-')[0] || '2026'} dengan Kode Rekening: <span className="font-mono font-bold">{data.kodeRekening || '.............................................'}</span>, serta dengan Pengajuan SPP LS.
         </p>
         <p>Demikian Berita Acara ini dibuat untuk dipergunakan seperlunya.</p>
       </div>

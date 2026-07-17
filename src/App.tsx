@@ -15,6 +15,8 @@ import {
   saveRekeningToSheet,
   fetchTransactionsFromSheet,
   saveTransactionsToSheet,
+  fetchArchivedFromSheet,
+  saveArchivedToSheet,
   SpreadsheetInfo
 } from './lib/sheets';
 import { SPJBundle, Pegawai, Rekening } from './types';
@@ -24,7 +26,9 @@ import { NpdView } from './components/NpdView';
 import { SpjForm } from './components/SpjForm';
 import { PegawaiMaster } from './components/PegawaiMaster';
 import { RekeningMaster } from './components/RekeningMaster';
+import { DashboardCharts } from './components/DashboardCharts';
 import { formatRupiah, formatTanggalIndo } from './lib/utils';
+import { generateDocHash } from './lib/signature';
 import {
   FileText,
   RefreshCw,
@@ -44,7 +48,12 @@ import {
   Sparkles,
   Lock,
   ChevronRight,
-  Eye
+  Eye,
+  ShieldCheck,
+  ShieldAlert,
+  Archive,
+  FolderDown,
+  FolderUp
 } from 'lucide-react';
 
 export default function App() {
@@ -61,16 +70,25 @@ export default function App() {
 
   // Application Data lists
   const [spjList, setSpjList] = useState<SPJBundle[]>([]);
+  const [archivedList, setArchivedList] = useState<SPJBundle[]>([]);
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'spj' | 'pegawai' | 'rekening'>('spj');
+  const [activeTab, setActiveTab] = useState<'spj' | 'pegawai' | 'rekening' | 'arsip'>('spj');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSpj, setEditingSpj] = useState<SPJBundle | null>(null);
   const [previewSpj, setPreviewSpj] = useState<SPJBundle | null>(null);
   const [previewDocType, setPreviewDocType] = useState<'kwitansi' | 'bap' | 'npd'>('kwitansi');
+  const [previewSignatureType, setPreviewSignatureType] = useState<'manual' | 'digital'>('manual');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Automatically update preview signature type based on document choice
+  useEffect(() => {
+    if (previewSpj) {
+      setPreviewSignatureType(previewSpj.signatureType || 'manual');
+    }
+  }, [previewSpj]);
 
   // Setup Auth state listener on mount
   useEffect(() => {
@@ -158,15 +176,17 @@ export default function App() {
   const loadAllData = async (spreadsheetId: string, accessToken: string) => {
     setSyncStatus('loading');
     try {
-      const [txs, staff, budget] = await Promise.all([
+      const [txs, staff, budget, archivedTxs] = await Promise.all([
         fetchTransactionsFromSheet(spreadsheetId, accessToken),
         fetchPegawaiFromSheet(spreadsheetId, accessToken),
-        fetchRekeningFromSheet(spreadsheetId, accessToken)
+        fetchRekeningFromSheet(spreadsheetId, accessToken),
+        fetchArchivedFromSheet(spreadsheetId, accessToken)
       ]);
       
       setSpjList(txs);
       setPegawaiList(staff);
       setRekeningList(budget);
+      setArchivedList(archivedTxs);
       setSyncStatus('synced');
     } catch (error) {
       console.error('Error loading data:', error);
@@ -185,7 +205,8 @@ export default function App() {
   const saveAllDataToSheet = async (
     updatedTxs: SPJBundle[],
     updatedStaff: Pegawai[],
-    updatedBudget: Rekening[]
+    updatedBudget: Rekening[],
+    updatedArchived: SPJBundle[] = archivedList
   ) => {
     if (!token || !spreadsheet) {
       // Local mode fallback
@@ -197,7 +218,8 @@ export default function App() {
       await Promise.all([
         saveTransactionsToSheet(spreadsheet.spreadsheetId, updatedTxs, token),
         savePegawaiToSheet(spreadsheet.spreadsheetId, updatedStaff, token),
-        saveRekeningToSheet(spreadsheet.spreadsheetId, updatedBudget, token)
+        saveRekeningToSheet(spreadsheet.spreadsheetId, updatedBudget, token),
+        saveArchivedToSheet(spreadsheet.spreadsheetId, updatedArchived, token)
       ]);
       setSyncStatus('synced');
     } catch (error) {
@@ -210,42 +232,95 @@ export default function App() {
   // SPJ Operations
   const handleSaveSpj = async (newSpj: SPJBundle) => {
     let updatedList;
-    if (spjList.some(item => item.id === newSpj.id)) {
-      updatedList = spjList.map(item => item.id === newSpj.id ? newSpj : item);
+    let updatedArchived = archivedList;
+    
+    if (newSpj.isArchived) {
+      updatedArchived = archivedList.map(item => item.id === newSpj.id ? newSpj : item);
+      updatedList = spjList;
     } else {
-      updatedList = [newSpj, ...spjList];
+      if (spjList.some(item => item.id === newSpj.id)) {
+        updatedList = spjList.map(item => item.id === newSpj.id ? newSpj : item);
+      } else {
+        updatedList = [newSpj, ...spjList];
+      }
     }
     
     // Dynamically adjust Sisa Anggaran in Rekening when NPD is processed
     const updatedRekening = rekeningList.map(rek => {
       if (rek.kode === newSpj.kodeRekening) {
         // Recalculate based on current transaction
-        const otherTxsTotal = updatedList
+        const otherActiveTxsTotal = updatedList
           .filter(t => t.id !== newSpj.id && t.kodeRekening === rek.kode)
           .reduce((sum, t) => sum + t.nilaiKontrak, 0);
+        const otherArchivedTxsTotal = updatedArchived
+          .filter(t => t.id !== newSpj.id && t.kodeRekening === rek.kode)
+          .reduce((sum, t) => sum + t.nilaiKontrak, 0);
+          
         return {
           ...rek,
-          sisaAnggaran: rek.anggaran - otherTxsTotal - newSpj.nilaiKontrak
+          sisaAnggaran: rek.anggaran - otherActiveTxsTotal - otherArchivedTxsTotal - newSpj.nilaiKontrak
         };
       }
       return rek;
     });
 
     setSpjList(updatedList);
+    setArchivedList(updatedArchived);
     setRekeningList(updatedRekening);
     setIsFormOpen(false);
     setEditingSpj(null);
 
     // Sync to Google Sheets
-    await saveAllDataToSheet(updatedList, pegawaiList, updatedRekening);
+    await saveAllDataToSheet(updatedList, pegawaiList, updatedRekening, updatedArchived);
   };
 
-  const handleDeleteSpj = async (id: string) => {
-    const confirmed = window.confirm('Apakah Anda yakin ingin menghapus Berkas SPJ ini? Tindakan ini akan menghapus Kuitansi, BAP, dan NPD sekaligus.');
+  const handleArchiveSpj = async (id: string) => {
+    const confirmed = window.confirm('Apakah Anda yakin ingin mengarsipkan Berkas SPJ ini? Berkas akan dipindahkan ke tab Arsip untuk menjaga sistem utama tetap cepat.');
     if (!confirmed) return;
 
     const targetSpj = spjList.find(t => t.id === id);
-    const updatedList = spjList.filter(item => item.id !== id);
+    if (!targetSpj) return;
+
+    const updatedSpj = { ...targetSpj, isArchived: true };
+    const nextSpjList = spjList.filter(item => item.id !== id);
+    const nextArchivedList = [updatedSpj, ...archivedList];
+
+    setSpjList(nextSpjList);
+    setArchivedList(nextArchivedList);
+    
+    await saveAllDataToSheet(nextSpjList, pegawaiList, rekeningList, nextArchivedList);
+  };
+
+  const handleRestoreSpj = async (id: string) => {
+    const confirmed = window.confirm('Apakah Anda yakin ingin memulihkan Berkas SPJ ini ke daftar aktif?');
+    if (!confirmed) return;
+
+    const targetSpj = archivedList.find(t => t.id === id);
+    if (!targetSpj) return;
+
+    const updatedSpj = { ...targetSpj, isArchived: false };
+    const nextArchivedList = archivedList.filter(item => item.id !== id);
+    const nextSpjList = [updatedSpj, ...spjList];
+
+    setSpjList(nextSpjList);
+    setArchivedList(nextArchivedList);
+    
+    await saveAllDataToSheet(nextSpjList, pegawaiList, rekeningList, nextArchivedList);
+  };
+
+  const handleDeleteSpj = async (id: string, isFromArchive: boolean = false) => {
+    const confirmed = window.confirm('Apakah Anda yakin ingin menghapus Berkas SPJ ini? Tindakan ini akan menghapus Kuitansi, BAP, dan NPD sekaligus secara permanen.');
+    if (!confirmed) return;
+
+    let targetSpj = spjList.find(t => t.id === id);
+    let nextSpjList = spjList.filter(item => item.id !== id);
+    let nextArchivedList = archivedList;
+
+    if (isFromArchive) {
+      targetSpj = archivedList.find(t => t.id === id);
+      nextArchivedList = archivedList.filter(item => item.id !== id);
+      nextSpjList = spjList;
+    }
     
     // Restore budget back to sisa anggaran
     let updatedRekening = rekeningList;
@@ -261,9 +336,10 @@ export default function App() {
       });
     }
 
-    setSpjList(updatedList);
+    setSpjList(nextSpjList);
+    setArchivedList(nextArchivedList);
     setRekeningList(updatedRekening);
-    await saveAllDataToSheet(updatedList, pegawaiList, updatedRekening);
+    await saveAllDataToSheet(nextSpjList, pegawaiList, updatedRekening, nextArchivedList);
   };
 
   // Pegawai Operations
@@ -309,9 +385,17 @@ export default function App() {
     item.kontraktorNama.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredArchived = archivedList.filter(item =>
+    item.judulPekerjaan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.noSpj.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.kontraktorNama.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Total Calculations for Dashboard Widgets
   const totalAnggaranDpa = rekeningList.reduce((sum, r) => sum + r.anggaran, 0);
-  const totalRealisasi = spjList.reduce((sum, s) => sum + s.nilaiKontrak, 0);
+  const totalRealisasiActive = spjList.reduce((sum, s) => sum + s.nilaiKontrak, 0);
+  const totalRealisasiArchived = archivedList.reduce((sum, s) => sum + s.nilaiKontrak, 0);
+  const totalRealisasi = totalRealisasiActive + totalRealisasiArchived;
   const totalSisaSaldo = totalAnggaranDpa - totalRealisasi;
 
   // LANDING PAGE (NEEDS AUTH)
@@ -506,6 +590,21 @@ export default function App() {
             Master Rekening DPA
           </button>
 
+          <button
+            onClick={() => {
+              setActiveTab('arsip');
+              setIsFormOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
+              activeTab === 'arsip' && !isFormOpen
+                ? 'bg-indigo-50 text-indigo-700 shadow-sm font-semibold'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Archive className="w-4 h-4 text-indigo-500" />
+            Arsip SPJ (Dokumen Lama)
+          </button>
+
           <div className="pt-4 px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Integrasi
           </div>
@@ -650,9 +749,15 @@ export default function App() {
                     {/* Bento Card 1: Total Berkas */}
                     <div className="md:col-span-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Berkas SPJ Diproses</span>
-                      <div className="flex items-baseline gap-2 mt-4">
-                        <span className="text-3xl font-extrabold text-slate-900">{spjList.length}</span>
-                        <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">Aktif</span>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-3xl font-extrabold text-slate-900">{spjList.length}</span>
+                          <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded-md">Aktif</span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5 border-l border-slate-150 pl-4">
+                          <span className="text-2xl font-bold text-slate-500">{archivedList.length}</span>
+                          <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md">Arsip</span>
+                        </div>
                       </div>
                     </div>
 
@@ -705,6 +810,13 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Visual Charts Section */}
+                  <DashboardCharts
+                    spjList={spjList}
+                    archivedList={archivedList}
+                    rekeningList={rekeningList}
+                  />
+
                   {/* Main Data Container matching Bento Grid Layout */}
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
                     
@@ -715,16 +827,18 @@ export default function App() {
                           {activeTab === 'spj' && <>Data Berkas SPJ Terintegrasi</>}
                           {activeTab === 'pegawai' && <>Data Master Pejabat & Pegawai</>}
                           {activeTab === 'rekening' && <>Data Master Rekening & Anggaran</>}
+                          {activeTab === 'arsip' && <>Arsip Berkas SPJ (Dokumen Lama)</>}
                         </h2>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           {activeTab === 'spj' && 'Kelola draf kuitansi, BAP, dan dokumen NPD PUPR.'}
                           {activeTab === 'pegawai' && 'Kelola daftar pejabat resmi untuk tanda tangan otomatis.'}
                           {activeTab === 'rekening' && 'Pagu anggaran sub kegiatan belanja DPA dinas.'}
+                          {activeTab === 'arsip' && 'Lihat dan pulihkan dokumen lama yang telah diarsipkan.'}
                         </p>
                       </div>
                       
                       {/* Inner actions depending on active Tab */}
-                      {activeTab === 'spj' && (
+                      {(activeTab === 'spj' || activeTab === 'arsip') && (
                         <div className="flex flex-wrap items-center gap-2">
                           {/* Search */}
                           <div className="relative">
@@ -740,15 +854,17 @@ export default function App() {
                             />
                           </div>
 
-                          <button
-                            onClick={() => {
-                              setEditingSpj(null);
-                              setIsFormOpen(true);
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm inline-flex items-center gap-1.5 transition cursor-pointer"
-                          >
-                            <FilePlus2 className="w-3.5 h-3.5" /> + Berkas SPJ
-                          </button>
+                          {activeTab === 'spj' && (
+                            <button
+                              onClick={() => {
+                                setEditingSpj(null);
+                                setIsFormOpen(true);
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm inline-flex items-center gap-1.5 transition cursor-pointer"
+                            >
+                              <FilePlus2 className="w-3.5 h-3.5" /> + Berkas SPJ
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -815,9 +931,93 @@ export default function App() {
                                           <Edit className="w-3.5 h-3.5" />
                                         </button>
                                         <button
+                                          onClick={() => handleArchiveSpj(item.id)}
+                                          className="p-1.5 border border-slate-200 hover:bg-amber-50 text-slate-500 hover:text-amber-600 rounded-xl transition cursor-pointer"
+                                          title="Arsipkan Berkas"
+                                        >
+                                          <FolderDown className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
                                           onClick={() => handleDeleteSpj(item.id)}
                                           className="p-1.5 border border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-xl transition cursor-pointer"
                                           title="Hapus"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {activeTab === 'arsip' && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50/50 text-slate-500 text-[10px] font-bold uppercase tracking-widest border-b border-slate-100">
+                                <th className="px-6 py-3.5">Judul Pekerjaan & No SPJ</th>
+                                <th className="px-6 py-3.5">Kontraktor / Penyedia</th>
+                                <th className="px-6 py-3.5">Kode Rekening</th>
+                                <th className="px-6 py-3.5 text-right">Nilai Kontrak</th>
+                                <th className="px-6 py-3.5 text-right">Aksi Dokumen</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs">
+                              {filteredArchived.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">Tidak ditemukan Berkas SPJ dalam arsip.</td>
+                                </tr>
+                              ) : (
+                                filteredArchived.map(item => (
+                                  <tr key={item.id} className="hover:bg-slate-50/50 transition">
+                                    <td className="px-6 py-4 max-w-sm">
+                                      <div className="font-bold text-slate-900 leading-normal">{item.judulPekerjaan}</div>
+                                      <div className="font-mono text-[10px] text-slate-400 mt-1 tracking-tight">SPJ: {item.noSpj || '-'}</div>
+                                      <div className="text-[10px] text-slate-500 mt-0.5">Tanggal: {formatTanggalIndo(item.tanggalSpj)}</div>
+                                      <span className="inline-flex items-center gap-1 mt-1.5 bg-amber-50 text-amber-700 text-[9px] px-2 py-0.5 border border-amber-200/50 rounded-full font-bold">
+                                        📁 Terarsipkan
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="font-bold text-slate-800 uppercase">{item.kontraktorNama}</div>
+                                      <div className="text-slate-500 mt-0.5">{item.kontraktorPimpinan}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <span className="font-mono bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-100/50 text-[10px] font-semibold">{item.kodeRekening}</span>
+                                      <div className="text-slate-500 text-[10px] mt-1 max-w-[150px] truncate">{item.uraianBelanja}</div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right font-extrabold text-slate-900 text-sm">
+                                      {formatRupiah(item.nilaiKontrak, true, false)}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                      <div className="inline-flex items-center gap-1.5 justify-end">
+                                        <button
+                                          onClick={() => {
+                                            setPreviewSpj(item);
+                                            setPreviewDocType('kwitansi');
+                                          }}
+                                          className="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100/50 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                                          title="Preview & Cetak"
+                                        >
+                                          <Printer className="w-3.5 h-3.5" /> Cetak & Preview
+                                        </button>
+                                        
+                                        <button
+                                          onClick={() => handleRestoreSpj(item.id)}
+                                          className="p-1.5 border border-slate-200 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 rounded-xl transition cursor-pointer"
+                                          title="Pulihkan Berkas ke Aktif"
+                                        >
+                                          <FolderUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        
+                                        <button
+                                          onClick={() => handleDeleteSpj(item.id, true)}
+                                          className="p-1.5 border border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-xl transition cursor-pointer"
+                                          title="Hapus Permanen"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -906,6 +1106,127 @@ export default function App() {
               </div>
             </div>
 
+            {/* Digital Signature Management Control Panel */}
+            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-xl flex-shrink-0 ${
+                  previewSpj.signatureType === 'digital' 
+                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                    : 'bg-slate-250 text-slate-500 border border-slate-300'
+                }`}>
+                  {previewSpj.signatureType === 'digital' ? <ShieldCheck className="w-5 h-5 text-indigo-600" /> : <ShieldAlert className="w-5 h-5 text-slate-500" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-800">Metode Tanda Tangan Dokumen</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
+                      previewSpj.signatureType === 'digital'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}>
+                      {previewSpj.signatureType === 'digital' ? '🔒 E-Sign BSRE Terenkripsi' : '✍ Manual / Tanda Tangan Basah'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
+                    {previewSpj.signatureType === 'digital'
+                      ? `Dokumen telah disahkan secara digital menggunakan token khusus pimpinan [${previewSpj.leaderToken}]. Tanda tangan ini memiliki karakter khusus unik per dokumen.`
+                      : 'Otorisasi menggunakan token pimpinan untuk menyematkan Tanda Tangan Digital (E-Sign) resmi BSRE lengkap dengan meterai QR terenkripsi.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Form Input / Action buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                {previewSpj.signatureType === 'digital' ? (
+                  <>
+                    {/* Live print toggle */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl shadow-sm text-[11px]">
+                      <span className="px-2 text-slate-500 font-semibold">Tampilkan saat cetak:</span>
+                      <button
+                        onClick={() => setPreviewSignatureType('digital')}
+                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                          previewSignatureType === 'digital'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        Digital Seal
+                      </button>
+                      <button
+                        onClick={() => setPreviewSignatureType('manual')}
+                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                          previewSignatureType === 'manual'
+                            ? 'bg-slate-200 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        Manual (Kosong)
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {
+                          const updated = {
+                            ...previewSpj,
+                            signatureType: 'manual',
+                            leaderToken: '',
+                            digitalSignatureHash: ''
+                          } as SPJBundle;
+                          setPreviewSpj(updated);
+                          await handleSaveSpj(updated);
+                        }
+                      }}
+                      className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-[11px] font-bold transition cursor-pointer"
+                    >
+                      Hapus E-Sign
+                    </button>
+                  </>
+                ) : (
+                  <form 
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const input = form.elements.namedItem('leaderToken') as HTMLInputElement;
+                      const tokenVal = input.value.trim();
+                      if (!tokenVal) {
+                        alert('Silakan masukkan token pimpinan!');
+                        return;
+                      }
+                      
+                      // Generate document signature hash
+                      const hash = generateDocHash(previewSpj.id, previewSpj.paNip, previewSpj.nilaiKontrak, tokenVal);
+                      
+                      const updated = {
+                        ...previewSpj,
+                        signatureType: 'digital',
+                        leaderToken: tokenVal,
+                        digitalSignatureHash: hash
+                      } as SPJBundle;
+                      
+                      setPreviewSpj(updated);
+                      await handleSaveSpj(updated);
+                    }}
+                    className="flex items-center gap-2 bg-white border border-slate-200 p-1 rounded-xl shadow-sm"
+                  >
+                    <input
+                      name="leaderToken"
+                      type="text"
+                      placeholder="Masukkan Token Pimpinan..."
+                      required
+                      className="px-3 py-1.5 text-[11px] border-none focus:outline-none w-48 font-medium bg-transparent"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Lock className="w-3 h-3" /> Tanda Tangani
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+
             {/* Instruction Banner */}
             <div className="bg-amber-50 border-b border-amber-100/50 px-6 py-2 flex items-center gap-2 text-amber-800 text-[10px] font-semibold">
               <Sparkles className="w-4 h-4 text-amber-500 animate-bounce" />
@@ -916,9 +1237,9 @@ export default function App() {
             <div className="flex-1 p-6 overflow-y-auto max-h-[70vh] bg-slate-200">
               {/* Dynamic printable ID container */}
               <div id="printable-document">
-                {previewDocType === 'kwitansi' && <KwitansiView data={previewSpj} />}
-                {previewDocType === 'bap' && <BapView data={previewSpj} />}
-                {previewDocType === 'npd' && <NpdView data={previewSpj} />}
+                {previewDocType === 'kwitansi' && <KwitansiView data={previewSpj} forcedSignatureType={previewSignatureType} />}
+                {previewDocType === 'bap' && <BapView data={previewSpj} forcedSignatureType={previewSignatureType} />}
+                {previewDocType === 'npd' && <NpdView data={previewSpj} forcedSignatureType={previewSignatureType} />}
               </div>
             </div>
           </div>
@@ -929,9 +1250,9 @@ export default function App() {
       <div className="hidden print:block" id="printable-document">
         {previewSpj && (
           <>
-            {previewDocType === 'kwitansi' && <KwitansiView data={previewSpj} />}
-            {previewDocType === 'bap' && <BapView data={previewSpj} />}
-            {previewDocType === 'npd' && <NpdView data={previewSpj} />}
+            {previewDocType === 'kwitansi' && <KwitansiView data={previewSpj} forcedSignatureType={previewSignatureType} />}
+            {previewDocType === 'bap' && <BapView data={previewSpj} forcedSignatureType={previewSignatureType} />}
+            {previewDocType === 'npd' && <NpdView data={previewSpj} forcedSignatureType={previewSignatureType} />}
           </>
         )}
       </div>

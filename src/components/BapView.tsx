@@ -6,14 +6,17 @@
 import React from 'react';
 import { SPJBundle } from '../types';
 import { formatRupiah, formatTanggalIndo, formatHariTanggalIndoTerbilang } from '../lib/utils';
+import { DigitalSeal } from '../lib/signature';
 
 interface BapViewProps {
   data: SPJBundle;
+  forcedSignatureType?: 'manual' | 'digital';
 }
 
-export const BapView: React.FC<BapViewProps> = ({ data }) => {
+export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) => {
   const totalPotongan = data.potonganPph21 + data.potonganPph22 + data.potonganPph23 + data.potonganPpn + data.potonganLain;
   const fisikBersih = data.nilaiKontrak - totalPotongan;
+  const sigType = forcedSignatureType || data.signatureType || 'manual';
 
   return (
     <div className="bg-white p-8 shadow-sm border border-gray-200 rounded-lg max-w-[800px] mx-auto my-4 font-serif text-black print:shadow-none print:border-none print:p-0 print:my-0 print:max-w-full">
@@ -220,7 +223,7 @@ export const BapView: React.FC<BapViewProps> = ({ data }) => {
       {/* SIGNATURES BLOCK */}
       <div className="grid grid-cols-2 gap-y-12 text-xs mt-12 mb-8 leading-snug">
         {/* Pihak Kedua (Kontraktor) */}
-        <div className="text-center px-4 flex flex-col justify-between h-40 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
+        <div className="text-center px-4 flex flex-col justify-between h-44 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
           <div className="absolute left-8 top-10 w-24 h-16 border-2 border-dashed border-sky-400 text-sky-400 text-[9px] font-sans rounded flex flex-col items-center justify-center rotate-[4deg] opacity-75 print:border-black print:text-black">
             <span className="font-bold">METERAI TEMPEL</span>
             <span className="text-[12px] font-black">10000</span>
@@ -231,20 +234,27 @@ export const BapView: React.FC<BapViewProps> = ({ data }) => {
             <p className="font-bold uppercase tracking-wider">PIHAK KEDUA</p>
             <p className="font-bold uppercase text-[10px] text-gray-600 print:text-black">{data.kontraktorNama || 'CV. EL EMUNAH'}</p>
           </div>
-          <div className="mt-auto z-10">
+          <div className="mt-auto z-10 h-16 flex items-end justify-center">
             <p className="font-bold underline uppercase tracking-wider">{data.kontraktorPimpinan || '.............................................'}</p>
-            <p className="text-[10px] italic">Kepala Perwakilan</p>
           </div>
+          <div className="text-[10px] italic">Kepala Perwakilan</div>
         </div>
 
         {/* Pihak Kesatu (PPK) */}
-        <div className="text-center px-4 flex flex-col justify-between h-40">
+        <div className="text-center px-4 flex flex-col justify-between h-44">
           <div>
             <p className="font-bold uppercase tracking-wider">PIHAK KESATU</p>
             <p className="font-semibold text-gray-600 uppercase text-[9px] leading-tight print:text-black">
               Pejabat Pembuat Komitmen (PPK) Program Penyelenggaraan Jalan Kegiatan Pembangunan Jalan T.A. {data.tanggalSpj.split('-')[0] || '2026'}
             </p>
           </div>
+          {sigType === 'digital' && data.ppkNama ? (
+            <div className="my-1.5">
+              <DigitalSeal signerNama={data.ppkNama} signerNip={data.ppkNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
+            </div>
+          ) : (
+            <div className="h-16"></div>
+          )}
           <div className="mt-auto">
             <p className="font-bold underline uppercase tracking-wider">{data.ppkNama || '.............................................'}</p>
             <p className="font-sans">NIP. {data.ppkNip || '.............................................'}</p>
@@ -252,13 +262,20 @@ export const BapView: React.FC<BapViewProps> = ({ data }) => {
         </div>
 
         {/* Mengetahui (Kepala Dinas) - Spanned to Center bottom */}
-        <div className="col-span-2 text-center px-4 flex flex-col justify-between h-36 mt-4 max-w-[400px] mx-auto">
+        <div className="col-span-2 text-center px-4 flex flex-col justify-between h-44 mt-4 max-w-[400px] mx-auto">
           <div>
             <p className="font-semibold">Mengetahui</p>
             <p className="font-semibold text-gray-600 uppercase text-[9px] leading-tight print:text-black">
               Kepala Dinas Pekerjaan Umum dan Penataan Ruang Kab. Nagekeo / Pengguna Anggaran
             </p>
           </div>
+          {sigType === 'digital' && data.paNama ? (
+            <div className="my-1.5">
+              <DigitalSeal signerNama={data.paNama} signerNip={data.paNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
+            </div>
+          ) : (
+            <div className="h-16"></div>
+          )}
           <div className="mt-auto">
             <p className="font-bold underline uppercase tracking-wider">{data.paNama || '.............................................'}</p>
             <p className="font-medium text-gray-700 text-[10px] print:text-black">{data.paGolongan || '.............................................'}</p>

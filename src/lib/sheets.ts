@@ -184,6 +184,7 @@ export const createSpreadsheet = async (accessToken: string): Promise<Spreadshee
       { properties: { title: 'Transactions' } },
       { properties: { title: 'Pegawai' } },
       { properties: { title: 'Rekening' } },
+      { properties: { title: 'Archived' } },
     ],
   };
 
@@ -317,6 +318,35 @@ export const saveRekeningToSheet = async (spreadsheetId: string, list: Rekening[
   await requestGoogleApi(url, 'PUT', accessToken, { values });
 };
 
+/**
+ * Dynamically ensures the Archived sheet exists for backwards compatibility
+ */
+export const ensureArchivedSheetExists = async (spreadsheetId: string, accessToken: string): Promise<void> => {
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+    const data = await requestGoogleApi(url, 'GET', accessToken);
+    const sheetTitles = data.sheets?.map((s: any) => s.properties.title) || [];
+    
+    if (!sheetTitles.includes('Archived')) {
+      const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+      const updateBody = {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: 'Archived'
+              }
+            }
+          }
+        ]
+      };
+      await requestGoogleApi(updateUrl, 'POST', accessToken, updateBody);
+    }
+  } catch (error) {
+    console.error('Error ensuring Archived sheet exists:', error);
+  }
+};
+
 export const fetchTransactionsFromSheet = async (spreadsheetId: string, accessToken: string): Promise<SPJBundle[]> => {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Transactions!A1:AZ1000`;
   try {
@@ -387,6 +417,11 @@ export const fetchTransactionsFromSheet = async (spreadsheetId: string, accessTo
         potonganPpn: Number(obj.potonganPpn) || 0,
         potonganLain: Number(obj.potonganLain) || 0,
         keteranganPotongan: obj.keteranganPotongan || '',
+
+        isArchived: obj.isArchived === 'true' || obj.isArchived === true,
+        signatureType: (obj.signatureType as any) || 'manual',
+        leaderToken: obj.leaderToken || '',
+        digitalSignatureHash: obj.digitalSignatureHash || '',
         
         createdAt: obj.createdAt || '',
         updatedAt: obj.updatedAt || '',
@@ -411,6 +446,7 @@ export const saveTransactionsToSheet = async (spreadsheetId: string, list: SPJBu
     'noNpd', 'tanggalNpd', 'jenisNpd', 'noDpa',
     'kodeRekening', 'uraianBelanja', 'anggaranTotal', 'anggaranSisa',
     'pembayaranPersen', 'potonganPph21', 'potonganPph22', 'potonganPph23', 'potonganPpn', 'potonganLain', 'keteranganPotongan',
+    'isArchived', 'signatureType', 'leaderToken', 'digitalSignatureHash',
     'createdAt', 'updatedAt'
   ];
 
@@ -460,6 +496,10 @@ export const saveTransactionsToSheet = async (spreadsheetId: string, list: SPJBu
       item.potonganPpn,
       item.potonganLain,
       item.keteranganPotongan || '-',
+      item.isArchived || false,
+      item.signatureType || 'manual',
+      item.leaderToken || '',
+      item.digitalSignatureHash || '',
       item.createdAt,
       item.updatedAt
     ])
@@ -467,5 +507,170 @@ export const saveTransactionsToSheet = async (spreadsheetId: string, list: SPJBu
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
   await requestGoogleApi(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Transactions!A1:AZ1000:clear`, 'POST', accessToken, {});
+  await requestGoogleApi(url, 'PUT', accessToken, { values });
+};
+
+export const fetchArchivedFromSheet = async (spreadsheetId: string, accessToken: string): Promise<SPJBundle[]> => {
+  await ensureArchivedSheetExists(spreadsheetId, accessToken);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Archived!A1:AZ1000`;
+  try {
+    const data = await requestGoogleApi(url, 'GET', accessToken);
+    if (!data.values || data.values.length <= 1) {
+      return [];
+    }
+
+    const headers = data.values[0];
+    const rows = data.values.slice(1);
+
+    return rows.map((row: any) => {
+      const obj: any = {};
+      headers.forEach((header: string, index: number) => {
+        obj[header] = row[index] !== undefined ? row[index] : '';
+      });
+      
+      return {
+        id: obj.id || '',
+        noSpj: obj.noSpj || '',
+        tanggalSpj: obj.tanggalSpj || '',
+        judulPekerjaan: obj.judulPekerjaan || '',
+        nilaiKontrak: Number(obj.nilaiKontrak) || 0,
+        terbilang: obj.terbilang || '',
+        
+        noKontrak: obj.noKontrak || '',
+        tglKontrak: obj.tglKontrak || '',
+        noSpmk: obj.noSpmk || '',
+        tglSpmk: obj.tglSpmk || '',
+        noBast: obj.noBast || '',
+        tglBast: obj.tglBast || '',
+        
+        kontraktorNama: obj.kontraktorNama || '',
+        kontraktorPimpinan: obj.kontraktorPimpinan || '',
+        kontraktorAlamat: obj.kontraktorAlamat || '',
+        
+        ppkNama: obj.ppkNama || '',
+        ppkNip: obj.ppkNip || '',
+        ppkJabatan: obj.ppkJabatan || '',
+        
+        bendaharaNama: obj.bendaharaNama || '',
+        bendaharaNip: obj.bendaharaNip || '',
+        bendaharaJabatan: obj.bendaharaJabatan || '',
+        
+        paNama: obj.paNama || '',
+        paNip: obj.paNip || '',
+        paGolongan: obj.paGolongan || '',
+        paJabatan: obj.paJabatan || '',
+        
+        pptkNama: obj.pptkNama || '',
+        pptkNip: obj.pptkNip || '',
+        pptkJabatan: obj.pptkJabatan || '',
+        
+        noNpd: obj.noNpd || '',
+        tanggalNpd: obj.tanggalNpd || '',
+        jenisNpd: obj.jenisNpd === 'PANJAR' ? 'PANJAR' : 'NON_PANJAR',
+        noDpa: obj.noDpa || '',
+        
+        kodeRekening: obj.kodeRekening || '',
+        uraianBelanja: obj.uraianBelanja || '',
+        anggaranTotal: Number(obj.anggaranTotal) || 0,
+        anggaranSisa: Number(obj.anggaranSisa) || 0,
+        
+        pembayaranPersen: Number(obj.pembayaranPersen) || 100,
+        potonganPph21: Number(obj.potonganPph21) || 0,
+        potonganPph22: Number(obj.potonganPph22) || 0,
+        potonganPph23: Number(obj.potonganPph23) || 0,
+        potonganPpn: Number(obj.potonganPpn) || 0,
+        potonganLain: Number(obj.potonganLain) || 0,
+        keteranganPotongan: obj.keteranganPotongan || '',
+
+        isArchived: obj.isArchived === 'true' || obj.isArchived === true,
+        signatureType: (obj.signatureType as any) || 'manual',
+        leaderToken: obj.leaderToken || '',
+        digitalSignatureHash: obj.digitalSignatureHash || '',
+        
+        createdAt: obj.createdAt || '',
+        updatedAt: obj.updatedAt || '',
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching archived transactions:', error);
+    return [];
+  }
+};
+
+export const saveArchivedToSheet = async (spreadsheetId: string, list: SPJBundle[], accessToken: string) => {
+  await ensureArchivedSheetExists(spreadsheetId, accessToken);
+  const range = 'Archived!A1';
+  const headers = [
+    'id', 'noSpj', 'tanggalSpj', 'judulPekerjaan', 'nilaiKontrak', 'terbilang',
+    'noKontrak', 'tglKontrak', 'noSpmk', 'tglSpmk', 'noBast', 'tglBast',
+    'kontraktorNama', 'kontraktorPimpinan', 'kontraktorAlamat',
+    'ppkNama', 'ppkNip', 'ppkJabatan',
+    'bendaharaNama', 'bendaharaNip', 'bendaharaJabatan',
+    'paNama', 'paNip', 'paGolongan', 'paJabatan',
+    'pptkNama', 'pptkNip', 'pptkJabatan',
+    'noNpd', 'tanggalNpd', 'jenisNpd', 'noDpa',
+    'kodeRekening', 'uraianBelanja', 'anggaranTotal', 'anggaranSisa',
+    'pembayaranPersen', 'potonganPph21', 'potonganPph22', 'potonganPph23', 'potonganPpn', 'potonganLain', 'keteranganPotongan',
+    'isArchived', 'signatureType', 'leaderToken', 'digitalSignatureHash',
+    'createdAt', 'updatedAt'
+  ];
+
+  const values = [
+    headers,
+    ...list.map(item => [
+      item.id,
+      item.noSpj,
+      item.tanggalSpj,
+      item.judulPekerjaan,
+      item.nilaiKontrak,
+      item.terbilang,
+      item.noKontrak,
+      item.tglKontrak,
+      item.noSpmk,
+      item.tglSpmk,
+      item.noBast,
+      item.tglBast,
+      item.kontraktorNama,
+      item.kontraktorPimpinan,
+      item.kontraktorAlamat,
+      item.ppkNama,
+      item.ppkNip,
+      item.ppkJabatan,
+      item.bendaharaNama,
+      item.bendaharaNip,
+      item.bendaharaJabatan,
+      item.paNama,
+      item.paNip,
+      item.paGolongan,
+      item.paJabatan,
+      item.pptkNama,
+      item.pptkNip,
+      item.pptkJabatan,
+      item.noNpd,
+      item.tanggalNpd,
+      item.jenisNpd,
+      item.noDpa,
+      item.kodeRekening,
+      item.uraianBelanja,
+      item.anggaranTotal,
+      item.anggaranSisa,
+      item.pembayaranPersen,
+      item.potonganPph21,
+      item.potonganPph22,
+      item.potonganPph23,
+      item.potonganPpn,
+      item.potonganLain,
+      item.keteranganPotongan || '-',
+      item.isArchived || false,
+      item.signatureType || 'manual',
+      item.leaderToken || '',
+      item.digitalSignatureHash || '',
+      item.createdAt,
+      item.updatedAt
+    ])
+  ];
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+  await requestGoogleApi(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Archived!A1:AZ1000:clear`, 'POST', accessToken, {});
   await requestGoogleApi(url, 'PUT', accessToken, { values });
 };

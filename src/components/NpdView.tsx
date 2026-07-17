@@ -6,12 +6,15 @@
 import React from 'react';
 import { SPJBundle } from '../types';
 import { formatRupiah, formatTanggalIndo } from '../lib/utils';
+import { DigitalSeal } from '../lib/signature';
 
 interface NpdViewProps {
   data: SPJBundle;
+  forcedSignatureType?: 'manual' | 'digital';
 }
 
-export const NpdView: React.FC<NpdViewProps> = ({ data }) => {
+export const NpdView: React.FC<NpdViewProps> = ({ data, forcedSignatureType }) => {
+  const sigType = forcedSignatureType || data.signatureType || 'manual';
   return (
     <div className="bg-white p-8 shadow-sm border border-gray-200 rounded-lg max-w-[800px] mx-auto my-4 font-serif text-black print:shadow-none print:border-none print:p-0 print:my-0 print:max-w-full">
       {/* KOP SURAT */}
@@ -151,11 +154,18 @@ export const NpdView: React.FC<NpdViewProps> = ({ data }) => {
       {/* SIGNATURES SECTION */}
       <div className="grid grid-cols-2 gap-x-8 text-xs leading-snug mt-12 mb-4">
         {/* Left Signature: Disiapkan oleh (PPTK) */}
-        <div className="text-center flex flex-col justify-between h-36 border border-gray-100/50 p-2 rounded print:border-none print:p-0">
+        <div className="text-center flex flex-col justify-between h-44 border border-gray-100/50 p-2 rounded print:border-none print:p-0">
           <div>
             <p className="font-semibold italic">Disiapkan oleh,</p>
             <p className="font-bold uppercase text-[10px] text-gray-700 print:text-black">{data.pptkJabatan || 'Pejabat Pelaksana Teknis Kegiatan (PPTK)'}</p>
           </div>
+          {sigType === 'digital' && data.pptkNama ? (
+            <div className="my-1.5">
+              <DigitalSeal signerNama={data.pptkNama} signerNip={data.pptkNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
+            </div>
+          ) : (
+            <div className="h-16"></div>
+          )}
           <div className="mt-auto">
             <p className="font-bold underline uppercase tracking-wider">{data.pptkNama || '.............................................'}</p>
             <p className="font-sans text-[10px]">NIP. {data.pptkNip || '.............................................'}</p>
@@ -163,11 +173,18 @@ export const NpdView: React.FC<NpdViewProps> = ({ data }) => {
         </div>
 
         {/* Right Signature: Disetujui oleh (Pengguna Anggaran) */}
-        <div className="text-center flex flex-col justify-between h-36">
+        <div className="text-center flex flex-col justify-between h-44">
           <div>
             <p className="font-semibold italic">Disetujui oleh,</p>
             <p className="font-bold uppercase text-[10px] text-gray-700 print:text-black">Pengguna Anggaran (PA)</p>
           </div>
+          {sigType === 'digital' && data.paNama ? (
+            <div className="my-1.5">
+              <DigitalSeal signerNama={data.paNama} signerNip={data.paNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
+            </div>
+          ) : (
+            <div className="h-16"></div>
+          )}
           <div className="mt-auto">
             <p className="font-bold underline uppercase tracking-wider">{data.paNama || '.............................................'}</p>
             <p className="font-sans text-[10px]">NIP. {data.paNip || '.............................................'}</p>

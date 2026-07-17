@@ -79,6 +79,12 @@ export interface SPJBundle {
   potonganLain: number;
   keteranganPotongan: string;
   
+  // Signature & Archiving Addition
+  isArchived?: boolean; // True if document has been archived to sheets
+  signatureType?: 'manual' | 'digital'; // 'manual' or 'digital'
+  leaderToken?: string; // Authorized leader token/PIN
+  digitalSignatureHash?: string; // Cryptographic verification hash
+
   // Meta
   createdAt: string;
   updatedAt: string;

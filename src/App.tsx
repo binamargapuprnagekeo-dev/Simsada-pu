@@ -54,7 +54,9 @@ import {
   ShieldAlert,
   Archive,
   FolderDown,
-  FolderUp
+  FolderUp,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -84,6 +86,7 @@ export default function App() {
   const [previewDocType, setPreviewDocType] = useState<'kwitansi' | 'bap' | 'npd'>('kwitansi');
   const [previewSignatureType, setPreviewSignatureType] = useState<'manual' | 'digital'>('manual');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Automatically update preview signature type based on document choice
   useEffect(() => {
@@ -157,6 +160,15 @@ export default function App() {
     }
   };
 
+  // Helper to parse Google API errors
+  const parseGoogleError = (error: any, defaultMsg: string): string => {
+    const msg = error?.message || '';
+    if (msg.includes('API_DISABLED') || msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('has not been used in project')) {
+      return `API Google Sheets atau Google Drive belum diaktifkan di Google Cloud Project Firebase Anda (${firebaseConfig.projectId}). Silakan aktifkan kedua API tersebut di Google Cloud Console agar aplikasi dapat mencari dan membuat file spreadsheet di Drive Anda.`;
+    }
+    return `${defaultMsg} Detail error: ${msg}`;
+  };
+
   // Search for an existing Google Sheet or trigger creation
   const handleDatabaseInit = async (accessToken: string) => {
     setSyncStatus('searching');
@@ -172,7 +184,7 @@ export default function App() {
     } catch (error: any) {
       console.error('Database initialization error:', error);
       setSyncStatus('error');
-      setSyncErrorMsg('Gagal mencari database Google Sheets. Silakan coba masuk kembali.');
+      setSyncErrorMsg(parseGoogleError(error, 'Gagal mencari database Google Sheets. Silakan coba masuk kembali.'));
     }
   };
 
@@ -187,7 +199,7 @@ export default function App() {
     } catch (error: any) {
       console.error('Error creating database:', error);
       setSyncStatus('error');
-      setSyncErrorMsg('Gagal membuat spreadsheet baru di Drive Anda.');
+      setSyncErrorMsg(parseGoogleError(error, 'Gagal membuat spreadsheet baru di Drive Anda.'));
     }
   };
 
@@ -207,10 +219,10 @@ export default function App() {
       setRekeningList(budget);
       setArchivedList(archivedTxs);
       setSyncStatus('synced');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading data:', error);
       setSyncStatus('error');
-      setSyncErrorMsg('Gagal mengunduh data dari Google Sheets Anda.');
+      setSyncErrorMsg(parseGoogleError(error, 'Gagal mengunduh data dari Google Sheets Anda.'));
     }
   };
 
@@ -586,12 +598,45 @@ export default function App() {
 
   // MAIN DASHBOARD (AUTHENTICATED)
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900 relative">
       
+      {/* Mobile Top Bar */}
+      <div className="flex md:hidden items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-30 print:hidden flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xs tracking-widest shadow-sm">
+            PUPR
+          </div>
+          <div>
+            <h1 className="font-display font-extrabold text-slate-800 text-xs tracking-wide leading-none">
+              Sistem SPJ
+            </h1>
+            <span className="text-[8px] text-slate-400 block font-bold leading-none uppercase tracking-wider mt-0.5">
+              KAB. NAGEKEO
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition cursor-pointer animate-none"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          className="fixed inset-0 bg-slate-900/40 z-40 md:hidden backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
       {/* Left Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col print:hidden flex-shrink-0">
+      <aside className={`fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-slate-200 flex flex-col print:hidden flex-shrink-0 z-50 transform md:transform-none transition-transform duration-300 ease-in-out ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
         {/* Logo & Header */}
-        <div className="p-6 border-b border-slate-100">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-sm tracking-widest shadow-md">
               PUPR
@@ -605,10 +650,17 @@ export default function App() {
               </span>
             </div>
           </div>
+          {/* Close Button inside Sidebar on Mobile */}
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 md:hidden transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-4 space-y-1.5">
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
           <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Layanan Dinas
           </div>
@@ -617,6 +669,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('spj');
               setIsFormOpen(false);
+              setIsMobileMenuOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
               activeTab === 'spj' && !isFormOpen
@@ -632,6 +685,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('pegawai');
               setIsFormOpen(false);
+              setIsMobileMenuOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
               activeTab === 'pegawai' && !isFormOpen
@@ -647,6 +701,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('rekening');
               setIsFormOpen(false);
+              setIsMobileMenuOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
               activeTab === 'rekening' && !isFormOpen
@@ -662,6 +717,7 @@ export default function App() {
             onClick={() => {
               setActiveTab('arsip');
               setIsFormOpen(false);
+              setIsMobileMenuOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
               activeTab === 'arsip' && !isFormOpen
@@ -682,6 +738,7 @@ export default function App() {
               href={spreadsheet.webViewLink}
               target="_blank"
               rel="noreferrer"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium text-xs"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>

@@ -19,6 +19,7 @@ export const DigitalSignatureList: React.FC<DigitalSignatureListProps> = ({ spjL
   const [adminPin, setAdminPin] = useState('');
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pendingSpjId, setPendingSpjId] = useState<string | null>(null);
+  const [pendingActionType, setPendingActionType] = useState<'show' | 'delete' | null>(null);
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [showTokensMap, setShowTokensMap] = useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -36,23 +37,33 @@ export const DigitalSignatureList: React.FC<DigitalSignatureListProps> = ({ spjL
       setShowTokensMap(prev => ({ ...prev, [spjId]: !prev[spjId] }));
     } else {
       setPendingSpjId(spjId);
+      setPendingActionType('show');
       setIsPinModalOpen(true);
     }
   };
 
-  const handleVerifyPin = (e: React.FormEvent) => {
+  const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPin === 'sims@dadpupr') {
       setIsPinVerified(true);
       setIsPinModalOpen(false);
       setAdminPin('');
       if (pendingSpjId) {
-        setShowTokensMap(prev => ({ ...prev, [pendingSpjId]: true }));
+        if (pendingActionType === 'show') {
+          setShowTokensMap(prev => ({ ...prev, [pendingSpjId]: true }));
+        } else if (pendingActionType === 'delete') {
+          if (window.confirm('Apakah Anda yakin ingin menghapus otorisasi tanda tangan digital ini?')) {
+            await onUnsign(pendingSpjId);
+            showToast('Otorisasi tanda tangan digital berhasil dihapus.');
+          }
+        }
         setPendingSpjId(null);
+        setPendingActionType(null);
+      } else {
+        showToast('Akses Admin Diverifikasi.');
       }
-      showToast('Akses Admin Diverifikasi. Token dapat didekripsi.');
     } else {
-      alert('PIN Salah! Hanya Admin yang dapat membuka token terenkripsi.');
+      alert('PIN Salah! Hanya Admin yang dapat melakukan aksi ini.');
     }
   };
 
@@ -84,9 +95,15 @@ export const DigitalSignatureList: React.FC<DigitalSignatureListProps> = ({ spjL
   };
 
   const handleRemoveSignature = async (spjId: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus otorisasi tanda tangan digital ini?')) {
-      await onUnsign(spjId);
-      showToast('Otorisasi tanda tangan digital berhasil dihapus.');
+    if (isPinVerified) {
+      if (window.confirm('Apakah Anda yakin ingin menghapus otorisasi tanda tangan digital ini?')) {
+        await onUnsign(spjId);
+        showToast('Otorisasi tanda tangan digital berhasil dihapus.');
+      }
+    } else {
+      setPendingSpjId(spjId);
+      setPendingActionType('delete');
+      setIsPinModalOpen(true);
     }
   };
 

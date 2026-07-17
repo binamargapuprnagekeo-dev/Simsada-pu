@@ -1364,16 +1364,22 @@ export default function App() {
                       </span>
                       <button
                         onClick={async () => {
-                          if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {
-                            const updated = {
-                              ...previewSpj,
-                              signatureType: 'manual',
-                              leaderToken: '',
-                              digitalSignatureHash: ''
-                            } as SPJBundle;
-                            setPreviewSpj(updated);
-                            setPreviewSignatureType('manual');
-                            await handleSaveSpj(updated);
+                          const adminPinInput = window.prompt('Masukkan PIN Admin (sims@dadpupr) untuk menghapus otorisasi E-Sign:');
+                          if (adminPinInput === null) return; // cancelled
+                          if (adminPinInput === 'sims@dadpupr') {
+                            if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {
+                              const updated = {
+                                ...previewSpj,
+                                signatureType: 'manual',
+                                leaderToken: '',
+                                digitalSignatureHash: ''
+                              } as SPJBundle;
+                              setPreviewSpj(updated);
+                              setPreviewSignatureType('manual');
+                              await handleSaveSpj(updated);
+                            }
+                          } else {
+                            alert('PIN Salah! Hanya Admin yang dapat menghapus otorisasi tanda tangan digital.');
                           }
                         }}
                         className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-[11px] font-bold transition cursor-pointer"

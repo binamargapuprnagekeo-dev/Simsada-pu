@@ -222,10 +222,10 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
       </div>
 
       {/* SIGNATURES BLOCK */}
-      <div className="grid grid-cols-2 gap-y-12 text-xs mt-12 mb-8 leading-snug">
+      <div className="grid grid-cols-2 gap-y-12 gap-x-6 text-xs mt-12 mb-8 leading-snug">
         {/* Pihak Kedua (Kontraktor) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
-          <div className="absolute left-8 top-10 w-24 h-16 border-2 border-dashed border-sky-400 text-sky-400 text-[9px] font-sans rounded flex flex-col items-center justify-center rotate-[4deg] opacity-75 print:border-black print:text-black">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
+          <div className="absolute left-8 top-12 w-24 h-16 border-2 border-dashed border-sky-400 text-sky-400 text-[9px] font-sans rounded flex flex-col items-center justify-center rotate-[4deg] opacity-75 print:border-black print:text-black">
             <span className="font-bold">METERAI TEMPEL</span>
             <span className="text-[12px] font-black">10000</span>
             <span className="text-[7px]">60B88ANX414177173</span>
@@ -242,7 +242,7 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
         </div>
 
         {/* Pihak Kesatu (PPK) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2">
           <div>
             <p className="font-bold uppercase tracking-wider">PIHAK KESATU</p>
             <p className="font-semibold text-gray-600 uppercase text-[9px] leading-tight print:text-black">
@@ -250,7 +250,7 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
             </p>
           </div>
           {sigType === 'digital' && data.ppkNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.ppkNama} signerNip={data.ppkNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (
@@ -263,7 +263,7 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
         </div>
 
         {/* Mengetahui (Kepala Dinas) - Spanned to Center bottom */}
-        <div className="col-span-2 text-center px-4 flex flex-col justify-between h-44 mt-4 max-w-[400px] mx-auto">
+        <div className="col-span-2 text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2 mt-4 max-w-[400px] mx-auto">
           <div>
             <p className="font-semibold">Mengetahui</p>
             <p className="font-semibold text-gray-600 uppercase text-[9px] leading-tight print:text-black">
@@ -271,7 +271,7 @@ export const BapView: React.FC<BapViewProps> = ({ data, forcedSignatureType }) =
             </p>
           </div>
           {sigType === 'digital' && data.paNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.paNama} signerNip={data.paNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (

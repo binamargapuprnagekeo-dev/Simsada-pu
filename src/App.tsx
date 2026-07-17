@@ -1341,6 +1341,16 @@ export default function App() {
                         : 'Sertifikat digital belum terdaftar untuk berkas ini. Silakan masukkan PIN Pejabat untuk mengaktifkan QR Code.')
                       : 'Menggunakan format tanda tangan basah (manual) pada dokumen hasil cetak.'}
                   </p>
+                  
+                  {previewSignatureType === 'digital' && (
+                    <div className="mt-1.5 p-2 bg-indigo-50/50 border border-indigo-100/30 rounded-lg text-[10px] text-indigo-950 max-w-xl flex items-start gap-1.5 font-sans leading-relaxed">
+                      <span className="text-xs">🔒</span>
+                      <div>
+                        <span className="font-bold text-indigo-900">Keamanan & Kerahasiaan Token: </span> 
+                        Sistem ini menggunakan penyimpanan serverless terenkripsi langsung ke Google Drive dinas Anda tanpa pihak ketiga. PIN dibuat secara mandiri oleh Pejabat tanpa pengiriman lewat email publik untuk mencegah penyadapan/kebocoran token di jaringan luar. Anda tetap dapat mencatat alamat email dinas resmi di menu <span className="font-bold text-indigo-900">"Pegawai & Pejabat"</span> sebagai master data administrasi penanda tangan.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

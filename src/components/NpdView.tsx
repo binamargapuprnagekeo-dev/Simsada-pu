@@ -155,13 +155,13 @@ export const NpdView: React.FC<NpdViewProps> = ({ data, forcedSignatureType }) =
       {/* SIGNATURES SECTION */}
       <div className="grid grid-cols-2 gap-x-8 text-xs leading-snug mt-12 mb-4">
         {/* Left Signature: Disiapkan oleh (PPTK) */}
-        <div className="text-center flex flex-col justify-between h-44 border border-gray-100/50 p-2 rounded print:border-none print:p-0">
+        <div className="text-center flex flex-col justify-between min-h-[11rem] h-auto pb-2 border border-gray-100/50 p-2 rounded print:border-none print:p-0">
           <div>
             <p className="font-semibold italic">Disiapkan oleh,</p>
             <p className="font-bold uppercase text-[10px] text-gray-700 print:text-black">{data.pptkJabatan || 'Pejabat Pelaksana Teknis Kegiatan (PPTK)'}</p>
           </div>
           {sigType === 'digital' && data.pptkNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.pptkNama} signerNip={data.pptkNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (
@@ -174,13 +174,13 @@ export const NpdView: React.FC<NpdViewProps> = ({ data, forcedSignatureType }) =
         </div>
 
         {/* Right Signature: Disetujui oleh (Pengguna Anggaran) */}
-        <div className="text-center flex flex-col justify-between h-44">
+        <div className="text-center flex flex-col justify-between min-h-[11rem] h-auto pb-2">
           <div>
             <p className="font-semibold italic">Disetujui oleh,</p>
             <p className="font-bold uppercase text-[10px] text-gray-700 print:text-black">Pengguna Anggaran (PA)</p>
           </div>
           {sigType === 'digital' && data.paNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.paNama} signerNip={data.paNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (

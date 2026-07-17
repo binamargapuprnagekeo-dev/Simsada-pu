@@ -117,15 +117,15 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
       </div>
 
       {/* SIGNATURES BLOCK */}
-      <div className="grid grid-cols-2 gap-y-10 text-xs mt-12 mb-8 leading-snug">
+      <div className="grid grid-cols-2 gap-y-10 gap-x-6 text-xs mt-12 mb-8 leading-snug">
         {/* Setuju Dibayar (PPK) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2">
           <div>
             <p className="font-semibold">Setuju dibayar</p>
             <p className="font-semibold text-gray-600 uppercase text-[10px] print:text-black">{data.ppkJabatan || 'Pejabat Pembuat Komitmen (PPK)'}</p>
           </div>
           {sigType === 'digital' && data.ppkNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.ppkNama} signerNip={data.ppkNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (
@@ -138,13 +138,13 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
         </div>
 
         {/* Lunas Dibayar (Bendahara) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2">
           <div>
             <p className="font-semibold">Lunas dibayar</p>
             <p className="font-semibold text-gray-600 uppercase text-[10px] print:text-black">BENDAHARA PENGELUARAN</p>
           </div>
           {sigType === 'digital' && data.bendaharaNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.bendaharaNama} signerNip={data.bendaharaNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (
@@ -157,8 +157,8 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
         </div>
 
         {/* Yang Menerima (Kontraktor) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
-          <div className="absolute left-4 top-10 w-24 h-16 border-2 border-dashed border-sky-400 text-sky-400 text-[9px] font-sans rounded flex flex-col items-center justify-center rotate-[-6deg] opacity-75 print:border-black print:text-black">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2 border border-gray-100 p-2 rounded relative print:border-none print:p-0">
+          <div className="absolute left-4 top-12 w-24 h-16 border-2 border-dashed border-sky-400 text-sky-400 text-[9px] font-sans rounded flex flex-col items-center justify-center rotate-[-6deg] opacity-75 print:border-black print:text-black">
             <span className="font-bold">METERAI TEMPEL</span>
             <span className="text-[12px] font-black">10000</span>
             <span className="text-[7px]">8CBE8ANX414177174</span>
@@ -176,7 +176,7 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
         </div>
 
         {/* Mengetahui (Kepala Dinas) */}
-        <div className="text-center px-4 flex flex-col justify-between h-44">
+        <div className="text-center px-4 flex flex-col justify-between min-h-[11rem] h-auto pb-2">
           <div>
             <p className="font-semibold">Mengetahui</p>
             <p className="font-semibold text-gray-600 uppercase text-[9px] leading-tight print:text-black">
@@ -184,7 +184,7 @@ export const KwitansiView: React.FC<KwitansiViewProps> = ({ data, forcedSignatur
             </p>
           </div>
           {sigType === 'digital' && data.paNama ? (
-            <div className="my-1.5">
+            <div className="my-2">
               <DigitalSeal signerNama={data.paNama} signerNip={data.paNip} docId={data.id} amount={data.nilaiKontrak} token={data.leaderToken} />
             </div>
           ) : (

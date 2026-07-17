@@ -9,6 +9,7 @@ export interface Pegawai {
   nip: string;
   jabatan: string;
   golongan?: string;
+  email?: string;
 }
 
 export interface Rekening {

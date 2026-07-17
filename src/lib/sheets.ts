@@ -241,6 +241,7 @@ export const fetchPegawaiFromSheet = async (spreadsheetId: string, accessToken: 
         nip: obj.nip || '',
         jabatan: obj.jabatan || '',
         golongan: obj.golongan || '',
+        email: obj.email || '',
       };
     });
   } catch (error) {
@@ -251,7 +252,7 @@ export const fetchPegawaiFromSheet = async (spreadsheetId: string, accessToken: 
 
 export const savePegawaiToSheet = async (spreadsheetId: string, list: Pegawai[], accessToken: string) => {
   const range = 'Pegawai!A1';
-  const headers = ['id', 'nama', 'nip', 'jabatan', 'golongan'];
+  const headers = ['id', 'nama', 'nip', 'jabatan', 'golongan', 'email'];
   const values = [
     headers,
     ...list.map(item => [
@@ -260,6 +261,7 @@ export const savePegawaiToSheet = async (spreadsheetId: string, list: Pegawai[],
       item.nip,
       item.jabatan,
       item.golongan || '',
+      item.email || '',
     ])
   ];
 

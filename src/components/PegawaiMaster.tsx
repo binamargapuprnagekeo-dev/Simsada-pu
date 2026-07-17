@@ -19,7 +19,8 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
     nama: '',
     nip: '',
     jabatan: '',
-    golongan: ''
+    golongan: '',
+    email: ''
   });
   const [isAdding, setIsAdding] = useState(false);
 
@@ -29,7 +30,8 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
       nama: item.nama,
       nip: item.nip,
       jabatan: item.jabatan,
-      golongan: item.golongan || ''
+      golongan: item.golongan || '',
+      email: item.email || ''
     });
     setIsAdding(false);
   };
@@ -37,7 +39,7 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
   const cancelEdit = () => {
     setEditingId(null);
     setIsAdding(false);
-    setForm({ nama: '', nip: '', jabatan: '', golongan: '' });
+    setForm({ nama: '', nip: '', jabatan: '', golongan: '', email: '' });
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -56,7 +58,7 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
 
   const startAdd = () => {
     setEditingId(null);
-    setForm({ nama: '', nip: '', jabatan: '', golongan: '' });
+    setForm({ nama: '', nip: '', jabatan: '', golongan: '', email: '' });
     setIsAdding(true);
   };
 
@@ -85,7 +87,7 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
           <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 font-display uppercase tracking-wider">
             {editingId ? 'Edit Data Pejabat' : 'Tambah Pejabat Baru'}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Lengkap & Gelar</label>
               <input
@@ -119,12 +121,22 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Golongan (Opsional)</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Golongan</label>
               <input
                 type="text"
                 value={form.golongan}
                 onChange={e => setForm({ ...form, golongan: e.target.value })}
                 placeholder="CONTOH: Pembina Utama / IV.c"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-800"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Email Resmi (Opsional)</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="CONTOH: pejabat@nagekeokab.go.id"
                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-800"
               />
             </div>
@@ -155,6 +167,7 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
               <th className="px-6 py-3.5">NIP</th>
               <th className="px-6 py-3.5">Jabatan</th>
               <th className="px-6 py-3.5">Golongan</th>
+              <th className="px-6 py-3.5">Email Penanda Tangan</th>
               <th className="px-6 py-3.5 text-right">Aksi</th>
             </tr>
           </thead>
@@ -174,6 +187,15 @@ export const PegawaiMaster: React.FC<PegawaiMasterProps> = ({ list, onSave, onDe
                   </td>
                   <td className="px-6 py-4 text-slate-700 font-medium">{item.jabatan}</td>
                   <td className="px-6 py-4 text-slate-500 text-xs">{item.golongan || '-'}</td>
+                  <td className="px-6 py-4">
+                    {item.email ? (
+                      <span className="text-xs text-indigo-600 bg-indigo-50/60 px-2 py-1 rounded-lg font-medium border border-indigo-100/30">
+                        {item.email}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic text-[11px]">Belum terdaftar</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="inline-flex items-center gap-1.5 justify-end">
                       <button

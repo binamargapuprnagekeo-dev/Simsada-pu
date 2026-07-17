@@ -27,6 +27,7 @@ import { SpjForm } from './components/SpjForm';
 import { PegawaiMaster } from './components/PegawaiMaster';
 import { RekeningMaster } from './components/RekeningMaster';
 import { DashboardCharts } from './components/DashboardCharts';
+import firebaseConfig from '../firebase-applet-config.json';
 import { formatRupiah, formatTanggalIndo } from './lib/utils';
 import { generateDocHash } from './lib/signature';
 import {
@@ -62,6 +63,7 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<{ code: string; message: string } | null>(null);
 
   // Sheets state
   const [spreadsheet, setSpreadsheet] = useState<SpreadsheetInfo | null>(null);
@@ -111,6 +113,7 @@ export default function App() {
   // Handle manual Google login
   const handleLogin = async () => {
     setIsLoggingIn(true);
+    setLoginError(null);
     try {
       const result = await googleSignIn();
       if (result) {
@@ -119,8 +122,24 @@ export default function App() {
         setNeedsAuth(false);
         handleDatabaseInit(result.accessToken);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sign in failed:', err);
+      const code = err?.code || 'unknown';
+      let message = 'Terjadi kesalahan saat masuk dengan Google. Silakan coba lagi.';
+      
+      if (code === 'auth/unauthorized-domain') {
+        message = 'Domain ini belum diotorisasi untuk login di project Firebase Anda.';
+      } else if (code === 'auth/popup-blocked') {
+        message = 'Popup diblokir oleh browser Anda. Harap izinkan popup untuk situs ini.';
+      } else if (code === 'auth/popup-closed-by-user') {
+        message = 'Proses masuk dibatalkan karena popup ditutup oleh pengguna.';
+      } else if (code === 'auth/cancelled-popup-request') {
+        message = 'Permintaan popup masuk dibatalkan.';
+      } else if (err?.message) {
+        message = err.message;
+      }
+      
+      setLoginError({ code, message });
     } finally {
       setIsLoggingIn(false);
     }
@@ -475,6 +494,55 @@ export default function App() {
               <p className="text-[10px] text-slate-400 mt-2.5 max-w-sm flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-slate-300" /> Menggunakan OAuth Google API Resmi. Data terjamin aman dan disimpan langsung di Google Drive Anda.
               </p>
+
+              {/* Login Error & Solution Box */}
+              {loginError && (
+                <div className="mt-6 p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3 text-xs max-w-xl text-left animate-fade-in">
+                  <div className="flex items-start gap-2.5 text-rose-800">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold">Gagal Menghubungkan Google Drive</p>
+                      <p className="mt-0.5 leading-relaxed text-rose-700">{loginError.message}</p>
+                    </div>
+                  </div>
+
+                  {loginError.code === 'auth/unauthorized-domain' && (
+                    <div className="pt-3 border-t border-rose-200/50 space-y-2.5 text-slate-600 font-medium">
+                      <p className="font-bold text-slate-800 text-[11px]">Cara Mengatasi di Firebase & Google Console Anda:</p>
+                      <ol className="list-decimal list-inside space-y-2 pl-1 leading-relaxed text-[11px]">
+                        <li>
+                          Buka <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold hover:underline inline-flex items-center gap-0.5">Firebase Console <ExternalLink className="w-3 h-3" /></a>
+                        </li>
+                        <li>
+                          Pilih project Anda: <span className="font-mono bg-slate-150 px-1 py-0.5 rounded font-bold text-slate-800">{firebaseConfig.projectId}</span> (atau project Firebase aktif Anda)
+                        </li>
+                        <li>
+                          Masuk ke menu <span className="font-bold text-slate-700">Authentication</span> &gt; tab <span className="font-bold text-slate-700">Settings</span> &gt; klik <span className="font-bold text-slate-700">Authorized domains</span> (Domain yang diotorisasi)
+                        </li>
+                        <li>
+                          Klik tombol <span className="font-bold text-slate-800">"Add domain"</span> lalu masukkan domain tempat Anda mendeploy saat ini:
+                          <span className="block mt-1 font-mono bg-white border border-slate-200 px-2.5 py-1 rounded text-indigo-700 font-bold text-xs select-all w-fit">
+                            {window.location.hostname}
+                          </span>
+                        </li>
+                        <li>
+                          Selanjutnya, buka <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold hover:underline inline-flex items-center gap-0.5">Google Cloud Credentials <ExternalLink className="w-3 h-3" /></a>
+                        </li>
+                        <li>
+                          Cari Client ID OAuth 2.0 milik Anda, edit, lalu tambahkan:
+                          <div className="mt-1 space-y-1 pl-4 text-[10px]">
+                            <p>• <span className="font-semibold text-slate-700">Authorized JavaScript origins:</span> <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-indigo-600 font-bold font-mono">{window.location.origin}</code></p>
+                            <p>• <span className="font-semibold text-slate-700">Authorized redirect URIs:</span> <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-indigo-600 font-bold font-mono">{window.location.origin}</code></p>
+                          </div>
+                        </li>
+                      </ol>
+                      <p className="text-[10px] text-slate-400 italic mt-1.5 leading-normal">
+                        * Setelah kedua langkah di atas selesai disimpan, silakan segarkan halaman ini dan klik tombol login kembali.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -692,6 +760,27 @@ export default function App() {
 
         {/* Scrollable Container */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 print:p-0 print:m-0">
+          
+          {/* Sync Error Banner */}
+          {syncStatus === 'error' && syncErrorMsg && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl mb-6 text-xs flex items-start gap-2.5 relative animate-fade-in">
+              <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">Gagal Sinkronisasi Google Sheets</p>
+                <p className="mt-0.5 text-rose-700 leading-relaxed font-medium">{syncErrorMsg}</p>
+                <p className="mt-2 text-[11px] text-slate-500 leading-relaxed">
+                  Kemungkinan besar token akses Google Anda telah kedaluwarsa atau belum memiliki izin akses Google Drive/Sheets yang memadai. Silakan keluar (logout) menggunakan tombol ikon pintu di kanan atas, lalu masuk kembali dengan memberikan izin penuh saat login Google.
+                </p>
+              </div>
+              <button 
+                onClick={() => setSyncStatus('idle')} 
+                className="absolute top-4 right-4 text-rose-450 hover:text-rose-650 font-bold transition cursor-pointer text-sm"
+                title="Sembunyikan"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           
           {/* If database is missing, show a beautiful prompt to initialize it */}
           {!spreadsheet && syncStatus !== 'searching' && (

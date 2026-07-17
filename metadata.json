@@ -1,0 +1,6 @@
+{
+  "name": "Sistem SPJ PUPR",
+  "description": "Sistem pembuatan dokumen SPJ (Kwitansi, BAP, dan NPD) Dinas Pekerjaan Umum dan Penataan Ruang Kabupaten Nagekeo, sinkron dengan Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

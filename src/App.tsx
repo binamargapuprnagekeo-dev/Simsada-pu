@@ -341,7 +341,7 @@ export default function App() {
   };
 
   const handleDeleteSpj = async (id: string, isFromArchive: boolean = false) => {
-    const adminPinInput = window.prompt('Masukkan PIN Admin (sims@dadpupr) untuk menghapus berkas SPJ ini:');
+    const adminPinInput = window.prompt('Masukkan PIN Admin untuk menghapus berkas SPJ ini:');
     if (adminPinInput === null) return; // cancelled
     if (adminPinInput !== 'sims@dadpupr') {
       alert('PIN Salah! Hanya Admin yang dapat menghapus berkas SPJ.');
@@ -1371,7 +1371,7 @@ export default function App() {
                       </span>
                       <button
                         onClick={async () => {
-                          const adminPinInput = window.prompt('Masukkan PIN Admin (sims@dadpupr) untuk menghapus otorisasi E-Sign:');
+                          const adminPinInput = window.prompt('Masukkan PIN Admin untuk menghapus otorisasi E-Sign:');
                           if (adminPinInput === null) return; // cancelled
                           if (adminPinInput === 'sims@dadpupr') {
                             if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {

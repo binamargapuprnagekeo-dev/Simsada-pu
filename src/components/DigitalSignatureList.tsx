@@ -250,7 +250,7 @@ export const DigitalSignatureList: React.FC<DigitalSignatureListProps> = ({ spjL
                           </div>
                           
                           <div className="text-[9px] text-slate-400">
-                            {isVisible ? '🔓 Plaintext didekripsi secara lokal' : '🔒 Terenkripsi (XOR sims@dadpupr)'}
+                            {isVisible ? '🔓 Plaintext didekripsi secara lokal' : '🔒 Terenkripsi (XOR Secured)'}
                           </div>
                         </div>
                       </td>
@@ -326,7 +326,7 @@ export const DigitalSignatureList: React.FC<DigitalSignatureListProps> = ({ spjL
             <form onSubmit={handleVerifyPin} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Masukkan PIN Pembuka Admin (sims@dadpupr)
+                  Masukkan PIN Pembuka Admin
                 </label>
                 <input
                   type="password"

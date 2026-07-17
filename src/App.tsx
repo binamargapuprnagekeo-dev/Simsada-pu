@@ -27,9 +27,10 @@ import { SpjForm } from './components/SpjForm';
 import { PegawaiMaster } from './components/PegawaiMaster';
 import { RekeningMaster } from './components/RekeningMaster';
 import { DashboardCharts } from './components/DashboardCharts';
+import { DigitalSignatureList } from './components/DigitalSignatureList';
 import firebaseConfig from '../firebase-applet-config.json';
 import { formatRupiah, formatTanggalIndo } from './lib/utils';
-import { generateDocHash } from './lib/signature';
+import { generateDocHash, encryptToken, decryptToken } from './lib/signature';
 import {
   FileText,
   RefreshCw,
@@ -79,7 +80,7 @@ export default function App() {
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'spj' | 'pegawai' | 'rekening' | 'arsip'>('spj');
+  const [activeTab, setActiveTab] = useState<'spj' | 'pegawai' | 'rekening' | 'arsip' | 'signatures'>('spj');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSpj, setEditingSpj] = useState<SPJBundle | null>(null);
   const [previewSpj, setPreviewSpj] = useState<SPJBundle | null>(null);
@@ -371,6 +372,24 @@ export default function App() {
     setArchivedList(nextArchivedList);
     setRekeningList(updatedRekening);
     await saveAllDataToSheet(nextSpjList, pegawaiList, updatedRekening, nextArchivedList);
+  };
+
+  const handleUnsignSpj = async (id: string) => {
+    const spj = spjList.find(s => s.id === id) || archivedList.find(s => s.id === id);
+    if (!spj) return;
+    
+    const updated = {
+      ...spj,
+      signatureType: 'manual',
+      leaderToken: '',
+      digitalSignatureHash: ''
+    } as SPJBundle;
+
+    if (previewSpj && previewSpj.id === id) {
+      setPreviewSpj(updated);
+    }
+
+    await handleSaveSpj(updated);
   };
 
   // Pegawai Operations
@@ -729,6 +748,22 @@ export default function App() {
             Arsip SPJ (Dokumen Lama)
           </button>
 
+          <button
+            onClick={() => {
+              setActiveTab('signatures');
+              setIsFormOpen(false);
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition text-left cursor-pointer ${
+              activeTab === 'signatures' && !isFormOpen
+                ? 'bg-indigo-50 text-indigo-700 shadow-sm font-semibold'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-indigo-500" />
+            Otorisasi E-Sign (Tanda Tangan)
+          </button>
+
           <div className="pt-4 px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Integrasi
           </div>
@@ -974,12 +1009,14 @@ export default function App() {
                           {activeTab === 'pegawai' && <>Data Master Pejabat & Pegawai</>}
                           {activeTab === 'rekening' && <>Data Master Rekening & Anggaran</>}
                           {activeTab === 'arsip' && <>Arsip Berkas SPJ (Dokumen Lama)</>}
+                          {activeTab === 'signatures' && <>Daftar Otorisasi Tanda Tangan Digital</>}
                         </h2>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           {activeTab === 'spj' && 'Kelola draf kuitansi, BAP, dan dokumen NPD PUPR.'}
                           {activeTab === 'pegawai' && 'Kelola daftar pejabat resmi untuk tanda tangan otomatis.'}
                           {activeTab === 'rekening' && 'Pagu anggaran sub kegiatan belanja DPA dinas.'}
                           {activeTab === 'arsip' && 'Lihat dan pulihkan dokumen lama yang telah diarsipkan.'}
+                          {activeTab === 'signatures' && 'Kelola dan dekripsi token tanda tangan digital pimpinan.'}
                         </p>
                       </div>
                       
@@ -1192,6 +1229,15 @@ export default function App() {
                           onDelete={handleDeleteRekening}
                         />
                       )}
+
+                      {activeTab === 'signatures' && (
+                        <div className="p-6">
+                          <DigitalSignatureList
+                            spjList={[...spjList, ...archivedList]}
+                            onUnsign={handleUnsignSpj}
+                          />
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -1253,122 +1299,122 @@ export default function App() {
             </div>
 
             {/* Digital Signature Management Control Panel */}
-            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-xl flex-shrink-0 ${
-                  previewSpj.signatureType === 'digital' 
+                  previewSignatureType === 'digital' 
                     ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
-                    : 'bg-slate-250 text-slate-500 border border-slate-300'
+                    : 'bg-slate-200 text-slate-500 border border-slate-300'
                 }`}>
-                  {previewSpj.signatureType === 'digital' ? <ShieldCheck className="w-5 h-5 text-indigo-600" /> : <ShieldAlert className="w-5 h-5 text-slate-500" />}
+                  {previewSignatureType === 'digital' ? <ShieldCheck className="w-5 h-5 text-indigo-600" /> : <ShieldAlert className="w-5 h-5 text-slate-500" />}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-extrabold text-slate-800">Metode Tanda Tangan Dokumen</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
-                      previewSpj.signatureType === 'digital'
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-amber-100 text-amber-800 border border-amber-200'
-                    }`}>
-                      {previewSpj.signatureType === 'digital' ? '🔒 E-Sign BSRE Terenkripsi' : '✍ Manual / Tanda Tangan Basah'}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-800">Pilihan Tanda Tangan Cetak:</span>
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+                      <button
+                        onClick={() => setPreviewSignatureType('manual')}
+                        className={`px-3 py-1 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
+                          previewSignatureType === 'manual'
+                            ? 'bg-slate-200 text-slate-800 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        ✍ Tanda Tangan Manual
+                      </button>
+                      <button
+                        onClick={() => setPreviewSignatureType('digital')}
+                        className={`px-3 py-1 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
+                          previewSignatureType === 'digital'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-500 hover:text-indigo-600'
+                        }`}
+                      >
+                        🔒 Digital (QR Code)
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
-                    {previewSpj.signatureType === 'digital'
-                      ? `Dokumen telah disahkan secara digital menggunakan token khusus pimpinan [${previewSpj.leaderToken}]. Tanda tangan ini memiliki karakter khusus unik per dokumen.`
-                      : 'Otorisasi menggunakan token pimpinan untuk menyematkan Tanda Tangan Digital (E-Sign) resmi BSRE lengkap dengan meterai QR terenkripsi.'}
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-xl leading-relaxed">
+                    {previewSignatureType === 'digital'
+                      ? (previewSpj.leaderToken 
+                        ? `Dokumen terdaftar dengan Tanda Tangan Digital (QR Code). Token terenkripsi tersimpan aman di Google Sheet.` 
+                        : 'Sertifikat digital belum terdaftar untuk berkas ini. Silakan masukkan PIN Pejabat untuk mengaktifkan QR Code.')
+                      : 'Menggunakan format tanda tangan basah (manual) pada dokumen hasil cetak.'}
                   </p>
                 </div>
               </div>
 
               {/* Form Input / Action buttons */}
               <div className="flex flex-wrap items-center gap-3">
-                {previewSpj.signatureType === 'digital' ? (
-                  <>
-                    {/* Live print toggle */}
-                    <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl shadow-sm text-[11px]">
-                      <span className="px-2 text-slate-500 font-semibold">Tampilkan saat cetak:</span>
+                {previewSignatureType === 'digital' && (
+                  previewSpj.leaderToken ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> E-Sign Terdaftar
+                      </span>
                       <button
-                        onClick={() => setPreviewSignatureType('digital')}
-                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                          previewSignatureType === 'digital'
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-50'
-                        }`}
+                        onClick={async () => {
+                          if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {
+                            const updated = {
+                              ...previewSpj,
+                              signatureType: 'manual',
+                              leaderToken: '',
+                              digitalSignatureHash: ''
+                            } as SPJBundle;
+                            setPreviewSpj(updated);
+                            setPreviewSignatureType('manual');
+                            await handleSaveSpj(updated);
+                          }
+                        }}
+                        className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-[11px] font-bold transition cursor-pointer"
                       >
-                        Digital Seal
-                      </button>
-                      <button
-                        onClick={() => setPreviewSignatureType('manual')}
-                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                          previewSignatureType === 'manual'
-                            ? 'bg-slate-200 text-slate-800'
-                            : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        Manual (Kosong)
+                        Hapus E-Sign
                       </button>
                     </div>
-
-                    <button
-                      onClick={async () => {
-                        if (window.confirm('Hapus otorisasi tanda tangan digital dari berkas ini?')) {
-                          const updated = {
-                            ...previewSpj,
-                            signatureType: 'manual',
-                            leaderToken: '',
-                            digitalSignatureHash: ''
-                          } as SPJBundle;
-                          setPreviewSpj(updated);
-                          await handleSaveSpj(updated);
+                  ) : (
+                    <form 
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const input = form.elements.namedItem('leaderToken') as HTMLInputElement;
+                        const tokenVal = input.value.trim();
+                        if (!tokenVal) {
+                          alert('Silakan masukkan PIN/Token pejabat!');
+                          return;
                         }
+                        
+                        // Generate document signature hash
+                        const hash = generateDocHash(previewSpj.id, previewSpj.paNip, previewSpj.nilaiKontrak, tokenVal);
+                        const encryptedToken = encryptToken(tokenVal);
+                        
+                        const updated = {
+                          ...previewSpj,
+                          signatureType: 'digital',
+                          leaderToken: encryptedToken,
+                          digitalSignatureHash: hash
+                        } as SPJBundle;
+                        
+                        setPreviewSpj(updated);
+                        setPreviewSignatureType('digital');
+                        await handleSaveSpj(updated);
                       }}
-                      className="px-3 py-1.5 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-[11px] font-bold transition cursor-pointer"
+                      className="flex items-center gap-2 bg-white border border-slate-200 p-1 rounded-xl shadow-xs"
                     >
-                      Hapus E-Sign
-                    </button>
-                  </>
-                ) : (
-                  <form 
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const input = form.elements.namedItem('leaderToken') as HTMLInputElement;
-                      const tokenVal = input.value.trim();
-                      if (!tokenVal) {
-                        alert('Silakan masukkan token pimpinan!');
-                        return;
-                      }
-                      
-                      // Generate document signature hash
-                      const hash = generateDocHash(previewSpj.id, previewSpj.paNip, previewSpj.nilaiKontrak, tokenVal);
-                      
-                      const updated = {
-                        ...previewSpj,
-                        signatureType: 'digital',
-                        leaderToken: tokenVal,
-                        digitalSignatureHash: hash
-                      } as SPJBundle;
-                      
-                      setPreviewSpj(updated);
-                      await handleSaveSpj(updated);
-                    }}
-                    className="flex items-center gap-2 bg-white border border-slate-200 p-1 rounded-xl shadow-sm"
-                  >
-                    <input
-                      name="leaderToken"
-                      type="text"
-                      placeholder="Masukkan Token Pimpinan..."
-                      required
-                      className="px-3 py-1.5 text-[11px] border-none focus:outline-none w-48 font-medium bg-transparent"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Lock className="w-3 h-3" /> Tanda Tangani
-                    </button>
-                  </form>
+                      <input
+                        name="leaderToken"
+                        type="password"
+                        placeholder="Masukkan PIN Pejabat..."
+                        required
+                        className="px-3 py-1.5 text-[11px] border-none focus:outline-none w-44 font-mono bg-transparent"
+                      />
+                      <button
+                        type="submit"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Lock className="w-3 h-3" /> Daftarkan QR
+                      </button>
+                    </form>
+                  )
                 )}
               </div>
             </div>

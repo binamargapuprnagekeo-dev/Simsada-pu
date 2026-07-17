@@ -7,6 +7,7 @@ import React from 'react';
 import { SPJBundle } from '../types';
 import { formatRupiah, formatTanggalIndo } from '../lib/utils';
 import { DigitalSeal } from '../lib/signature';
+import logoNagekeo from '../assets/images/logo_nagekeo_pemda_1784266399665.jpg';
 
 interface NpdViewProps {
   data: SPJBundle;
@@ -19,12 +20,12 @@ export const NpdView: React.FC<NpdViewProps> = ({ data, forcedSignatureType }) =
     <div className="bg-white p-8 shadow-sm border border-gray-200 rounded-lg max-w-[800px] mx-auto my-4 font-serif text-black print:shadow-none print:border-none print:p-0 print:my-0 print:max-w-full">
       {/* KOP SURAT */}
       <div className="flex items-center justify-center border-b-[3px] border-double border-black pb-4 mb-4 text-center relative">
-        <div className="absolute left-0 top-0 w-16 h-16 border-2 border-black rounded-full flex flex-col items-center justify-center text-[8px] font-bold p-1 leading-none print:w-14 print:h-14">
-          <span className="text-[6px]">KABUPATEN</span>
-          <span className="font-sans text-[8px]">NAGEKEO</span>
-          <div className="w-6 h-4 bg-gray-300 border border-black my-0.5 rounded-sm flex items-center justify-center text-[5px] text-black">PUPR</div>
-          <span className="text-[5px]">FLORES</span>
-        </div>
+        <img 
+          src={logoNagekeo} 
+          alt="Logo Pemda Nagekeo" 
+          className="absolute left-0 top-0 w-16 h-16 object-contain print:w-14 print:h-14" 
+          referrerPolicy="no-referrer"
+        />
         
         <div className="flex-1">
           <h2 className="text-lg font-bold tracking-wider leading-tight uppercase">Pemerintah Kabupaten Nagekeo</h2>
